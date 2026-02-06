@@ -41,11 +41,12 @@ class AirportFeatureEngineer:
         Returns:
             self (for method chaining)
         """
-        self.airport_avg_delay_ = train_data.groupby('ORIGIN_AIRPORT')['ARRIVAL_DELAY'].mean().round(2)
+        self.origin_a_avg_delay_ = train_data.groupby('ORIGIN_AIRPORT')['ARRIVAL_DELAY'].mean().round(2)
+        self.destination_a_avg_delay_ = train_data.groupby('DESTINATION_AIRPORT')['ARRIVAL_DELAY'].mean().round(2)
         self.global_mean_ = train_data['ARRIVAL_DELAY'].mean().round(2)
-        self.top_10_airports_ = train_data['ORIGIN_AIRPORT'].value_counts().head(10).index.tolist()
-        self.airport_traffic_ = train_data['ORIGIN_AIRPORT'].value_counts()
-        self.median_traffic_ = self.airport_traffic_.median()
+
+        self.origin_a_traffic_ = train_data['ORIGIN_AIRPORT'].value_counts()
+        self.destination_a_traffic_ = train_data['DESTINATION_AIRPORT'].value_counts()
 
         return self
     
@@ -65,21 +66,40 @@ class AirportFeatureEngineer:
         Returns:
             Transformed dataframe with new features
         """
-        if self.airport_avg_delay_ is None:
+        if self.origin_a_avg_delay_ is None:
             raise ValueError("FeatureEngineer must be fitted before transform! Call .fit() first.")    
         data = data.copy()
 
-        data['ORIGIN_AVG_DELAY'] = data['ORIGIN_AIRPORT'].map(self.airport_avg_delay_)
+        # 1. Drop leakage columns (if they exist)
+        leakage_cols = ['YEAR', 'FLIGHT_NUMBER', 'TAIL_NUMBER', 'DEPARTURE_TIME', 'DEPARTURE_DELAY', 'TAXI_OUT', 'WHEELS_OFF',
+                        'ELAPSED_TIME', 'AIR_TIME', 'WHEELS_ON', 'TAXI_IN', 'ARRIVAL_TIME', 'AIR_SYSTEM_DELAY', 'SECURITY_DELAY',
+                        'AIRLINE_DELAY', 'LATE_AIRCRAFT_DELAY', 'WEATHER_DELAY', 'CANCELLED', 'DIVERTED', 'CANCELLATION_REASON']
+        data = data.drop(columns=[c for c in leakage_cols if c in data.columns], errors='ignore')
+        
+        # 2. Drop multicollinear
+        if 'DISTANCE' in data.columns:
+            data = data.drop('DISTANCE', axis=1)
+
+        data['ORIGIN_AVG_DELAY'] = data['ORIGIN_AIRPORT'].map(self.origin_a_avg_delay_)
         data['ORIGIN_AVG_DELAY'] = data['ORIGIN_AVG_DELAY'].fillna(self.global_mean_)
+        data['DESTINATION_AVG_DELAY'] = data['DESTINATION_AIRPORT'].map(self.destination_a_avg_delay_)
+        data['DESTINATION_AVG_DELAY'] = data['DESTINATION_AVG_DELAY'].fillna(self.global_mean_)
 
-        for airport in self.top_10_airports_:
-            data[f'A_{airport}'] = (data['ORIGIN_AIRPORT'] == airport).astype(int)
+        for airport in self.origin_a_traffic_.head(10).index.tolist():
+            data[f'OA_{airport}'] = (data['ORIGIN_AIRPORT'] == airport).astype(int)
+        
+        for airport in self.destination_a_traffic_.head(10).index.tolist():
+            data[f'DA_{airport}'] = (data['DESTINATION_AIRPORT'] == airport).astype(int)
 
-        data['ORIGIN_TRAFFIC'] = data['ORIGIN_AIRPORT'].map(self.airport_traffic_)
-        data['ORIGIN_TRAFFIC'] = data['ORIGIN_TRAFFIC'].fillna(self.median_traffic_)
+        data['ORIGIN_TRAFFIC'] = data['ORIGIN_AIRPORT'].map(self.origin_a_traffic_)
+        data['ORIGIN_TRAFFIC'] = data['ORIGIN_TRAFFIC'].fillna(self.origin_a_traffic_.median())
+        data['DESTINATION_TRAFFIC'] = data['DESTINATION_AIRPORT'].map(self.destination_a_traffic_)
+        data['DESTINATION_TRAFFIC'] = data['DESTINATION_TRAFFIC'].fillna(self.destination_a_traffic_.median())
 
-        data['AIRPORT_TYPE'] = data['ORIGIN_AIRPORT'].apply(self._classify_airport)
-        data['IS_MAJOR'] = (data['AIRPORT_TYPE'] == 'MAJOR').astype(int)
+        data['ORIGIN_A_TYPE'] = data['ORIGIN_AIRPORT'].apply(self._classify_airport)
+        data['DESTINATION_A_TYPE'] = data['DESTINATION_AIRPORT'].apply(self._classify_airport)
+        data['IS_MAJOR_ORIGIN'] = (data['ORIGIN_A_TYPE'] == 'MAJOR').astype(int)
+        data['IS_MAJOR_DESTINATION'] = (data['DESTINATION_A_TYPE'] == 'MAJOR').astype(int)
 
         return data
     
