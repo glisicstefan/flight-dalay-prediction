@@ -12,6 +12,11 @@ class AirportFeatureEngineer:
     - IS_MAJOR_DESTINATION: Binary indicator (major vs regional destination)
     - ORIGIN_TRAFFIC: Number of flights from origin airport
     - DESTINATION_TRAFFIC: Number of flights to destination airport
+
+    Changes in this version:
+    - REMOVED: OA_{AIRPORT} one-hot encoding (redundant with ORIGIN_AVG_DELAY)
+    - REMOVED: DA_{AIRPORT} one-hot encoding (redundant with DESTINATION_AVG_DELAY)
+    - ADDED: HOUR feature extracted from SCHEDULED_DEPARTURE
     
     Usage:
         # Training
@@ -89,16 +94,22 @@ class AirportFeatureEngineer:
         if 'DISTANCE' in data.columns:
             data = data.drop('DISTANCE', axis=1)
 
+        # NEW feature for random forest
+        data['HOUR'] = (data['SCHEDULED_DEPARTURE'] // 100).astype(int)
+        assert data['HOUR'].min() >= 0 and data['HOUR'].max() <= 23, "HOUR feature has invalid values!"
+        data = data.drop('SCHEDULED_DEPARTURE', axis=1)
+
         data['ORIGIN_AVG_DELAY'] = data['ORIGIN_AIRPORT'].map(self.origin_a_avg_delay_)
         data['ORIGIN_AVG_DELAY'] = data['ORIGIN_AVG_DELAY'].fillna(self.global_mean_)
         data['DESTINATION_AVG_DELAY'] = data['DESTINATION_AIRPORT'].map(self.destination_a_avg_delay_)
         data['DESTINATION_AVG_DELAY'] = data['DESTINATION_AVG_DELAY'].fillna(self.global_mean_)
 
-        for airport in self.origin_a_traffic_.head(10).index.tolist():
-            data[f'OA_{airport}'] = (data['ORIGIN_AIRPORT'] == airport).astype(int)
+        # REMOVING One-hot encoding for top 10 airports (REDUNDANT!)
+        # for airport in self.origin_a_traffic_.head(10).index.tolist():
+        #     data[f'OA_{airport}'] = (data['ORIGIN_AIRPORT'] == airport).astype(int)
         
-        for airport in self.destination_a_traffic_.head(10).index.tolist():
-            data[f'DA_{airport}'] = (data['DESTINATION_AIRPORT'] == airport).astype(int)
+        # for airport in self.destination_a_traffic_.head(10).index.tolist():
+        #     data[f'DA_{airport}'] = (data['DESTINATION_AIRPORT'] == airport).astype(int)
 
         for airline in self.airline_counts_.index.tolist():
             data[f'AIRLINE_{airline}'] = (data['AIRLINE'] == airline).astype(int)
