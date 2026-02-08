@@ -166,7 +166,7 @@ def save_model(model, output_dir='../../models'):
     Path(output_dir).mkdir(parents=True, exist_ok=True)
     
     # Save model
-    joblib.dump(model, os.path.join(output_dir, "random_forest.pkl"))
+    joblib.dump(model, os.path.join(output_dir, "random_forest.pkl"), compress=3)
     
     print(f"\n✅ Model saved: {output_dir}/random_forest.pkl")
     

@@ -11,9 +11,9 @@ A machine learning project predicting US domestic flight arrival delays using hi
 **Dataset:** 
 - 4.5M US domestic flights (2015)
 - Train: 3.4M | Validation: 1.1M | Test: 1.1M  
-- 45 features after engineering
+- 26 features after optimization
 
-**Best Model:** Random Forest (R²=0.16, RMSE=29.34 minutes)
+**Best Model:** Random Forest (R²=0.18, RMSE=29.00 minutes)
 
 ---
 
@@ -28,16 +28,17 @@ A machine learning project predicting US domestic flight arrival delays using hi
 - Automated train/val/test split pipeline (60/20/20)
 - Feature engineering class (`AirportFeatureEngineer`)
   - Target encoding (ORIGIN_AVG_DELAY, DESTINATION_AVG_DELAY)
-  - One-hot top 10 airports (origin & destination)
   - Traffic volume features
   - Airport type indicators
+  - HOUR extraction from scheduled departure time
 - Data validation pipeline
 
-### ✅ Week 3: Model Training
+### ✅ Week 3: Model Training & Optimization
 **Models Trained:**
 1. **Heuristic Baseline** (naive mean, feature-based)
 2. **Linear Regression** (with StandardScaler)
-3. **Random Forest** ← Selected for deployment
+3. **Random Forest v1** (45 features)
+4. **Random Forest v2** (26 features - optimized) ← Selected
 
 **Results:**
 
@@ -45,9 +46,16 @@ A machine learning project predicting US domestic flight arrival delays using hi
 |-------|----------------|---------------|-------------|
 | Baseline | 31.96 min | 0.0059 | - |
 | Linear Regression | 31.54 min | 0.0317 | 5.4x R² |
-| **Random Forest** | **29.34 min** | **0.1624** | **27.5x R²** |
+| Random Forest v1 | 29.34 min | 0.1624 | 27.5x R² |
+| **Random Forest v2** | **29.00 min** | **0.1815** | **30.7x R²** |
 
-**Key Finding:** Temporal features (SCHEDULED_DEPARTURE, DAY, MONTH) explain 56% of prediction power—more important than airport characteristics.
+**Feature Optimization:**
+- Removed 19 redundant airport one-hot encodings (OA_*, DA_*)
+- Added HOUR feature (extracted from SCHEDULED_DEPARTURE)
+- Reduced features: 45 → 26 (42% reduction)
+- Performance improved: +11.8% R²
+
+**Key Finding:** Temporal features (DAY, MONTH, HOUR) explain 52% of prediction power—more important than airport characteristics.
 
 ### 🔜 Next Steps (Optional)
 - XGBoost/LightGBM experimentation
@@ -85,7 +93,7 @@ flight-delay-prediction/
 │       └── train_random_forest.py     # Random Forest
 │
 ├── models/                     # Trained models (gitignored)
-│   ├── random_forest.pkl              # Selected model (444 MB)
+│   ├── random_forest.pkl              # Selected model (1 GB compressed)
 │   └── rf_feature_importance.csv      # Feature rankings
 │
 ├── docs/
@@ -131,29 +139,29 @@ python src/models/train_random_forest.py
 
 ## 📈 Model Performance
 
-### Random Forest (Selected Model)
+### Random Forest v2 (Selected Model)
 
 **Validation Metrics:**
-- RMSE: 29.34 minutes
-- MAE: 17.98 minutes
-- R²: 0.1624 (explains 16.24% of variance)
+- RMSE: 29.00 minutes
+- MAE: 17.78 minutes
+- R²: 0.1815 (explains 18.15% of variance)
 
-**Why R²=16% is good:**
-- Baseline R²=0.6% → **27x improvement**
+**Why R²=18% is good:**
+- Baseline R²=0.6% → **30x improvement**
 - Problem is inherently noisy (weather, ATC, mechanical issues)
 - Academic benchmarks: R²=10-20% for similar problems
 - Business impact: 3 min RMSE reduction = $500k-1M annual savings
 
-**Training:** 6 minutes on 3.4M samples  
-**Prediction:** 24 seconds for 1.1M samples  
-**Model Size:** 444 MB
+**Training:** ~2 minutes on 3.4M samples  
+**Prediction:** ~10 seconds for 1.1M samples  
+**Model Size:** 1 GB (compressed)
 
 ### Top Features (by importance)
-1. SCHEDULED_DEPARTURE (16%) - Time of day
-2. DAY (15%) - Day of month
-3. MONTH (13%) - Seasonality
-4. SCHEDULED_ARRIVAL (13%) - Arrival time
-5. DAY_OF_WEEK (7%) - Weekday patterns
+1. DAY (18.3%) - Day of month
+2. SCHEDULED_ARRIVAL (15.1%) - Arrival time
+3. MONTH (10.6%) - Seasonality
+4. DAY_OF_WEEK (8.8%) - Weekday patterns
+5. ORIGIN_AVG_DELAY (8.7%) - Historical delays
 
 ---
 
@@ -162,9 +170,15 @@ python src/models/train_random_forest.py
 ### Temporal > Spatial
 **Unexpected finding:** *When* you fly matters more than *where* you fly from/to.
 
-- Top 5 features are all temporal (time, date, season)
-- Airport features (origin/destination) are secondary
+- Top 4 features are temporal (time, date, season) - 52% combined importance
+- Airport features (origin/destination) are secondary (31% combined)
 - Implication: Delays driven by time-of-day congestion and seasonal patterns
+
+### Feature Engineering Impact
+**Iterative optimization improved model by 12%:**
+- Removed 19 redundant airport one-hot features
+- Added HOUR feature (9th most important, 7.77%)
+- Result: Simpler model (26 vs 45 features) with better performance
 
 ### Business Applications
 1. **Dynamic Pricing:** Adjust fares for high-delay times
@@ -184,20 +198,13 @@ python src/models/train_random_forest.py
 
 ---
 
-## 📚 Documentation
-
-- [Week 1: EDA Report](docs/week1_eda_report.md)
-- [Week 3: Model Training Summary](docs/week3_model_training.md)
-- [Baseline Evaluation Notebook](notebooks/02_baseline_evaluation.ipynb)
-
----
-
 ## 🎓 Learning Outcomes
 
 This project demonstrates:
 - ✅ End-to-end ML pipeline (EDA → feature engineering → model training)
 - ✅ Production-ready code (modular, reproducible, documented)
 - ✅ Model comparison and selection methodology
+- ✅ Iterative feature optimization (45 → 26 features, +12% R²)
 - ✅ Feature importance interpretation
 - ✅ Data leakage prevention
 
@@ -211,7 +218,4 @@ Educational project for portfolio purposes.
 
 **Author:** [Stefan Glisic](https://github.com/glisicstefan)  
 **Last Updated:** February 2026  
-**Status:** Week 3 Complete ✅ | Random Forest Deployed 🚀
-```
-
----
+**Status:** Week 3 Complete ✅ | Optimized Random Forest Deployed 🚀
