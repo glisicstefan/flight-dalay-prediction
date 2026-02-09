@@ -8,6 +8,8 @@ for machine learning models.
 import pandas as pd
 import numpy as np
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+import mlflow
+import mlflow.sklearn
 
 
 class HeuristicBaseline:
@@ -138,11 +140,13 @@ if __name__ == '__main__':
     print("="*60)
     print("TESTING HEURISTIC BASELINES")
     print("="*60)
+
+    mlflow.set_experiment("flight-delay-prediction")
     
-    X_train = pd.read_csv("../../data/processed/X_train.csv")
-    y_train = pd.read_csv("../../data/processed/y_train.csv")
-    X_val  = pd.read_csv("../../data/processed/X_val.csv")
-    y_val = pd.read_csv("../../data/processed/y_val.csv")
+    X_train = pd.read_csv("data/processed/X_train.csv")
+    y_train = pd.read_csv("data/processed/y_train.csv")['ARRIVAL_DELAY']
+    X_val  = pd.read_csv("data/processed/X_val.csv")
+    y_val = pd.read_csv("data/processed/y_val.csv")['ARRIVAL_DELAY']
     
     strategies = ['naive_mean', 'feature_based']
     
@@ -157,6 +161,26 @@ if __name__ == '__main__':
         metrics = baseline.evaluate(X_val, y_val)
         baseline.print_metrics(metrics)
         
+        with mlflow.start_run(run_name=f"baseline_{strategy}"):
+            # Log parameters
+            mlflow.log_param("model_type", "heuristic_baseline")
+            mlflow.log_param("strategy", strategy)
+            mlflow.log_param("n_train_samples", len(X_train))
+            mlflow.log_param("n_val_samples", len(X_val))
+            
+            if strategy == 'naive_mean':
+                mlflow.log_param("predicted_value", float(baseline.global_mean_))
+            elif strategy == 'feature_based':
+                mlflow.log_param("feature_used", "DESTINATION_AVG_DELAY")
+            
+            # Log metrics
+            mlflow.log_metric("val_rmse", metrics['RMSE'])
+            mlflow.log_metric("val_mae", metrics['MAE'])
+            mlflow.log_metric("val_r2", metrics['R2'])
+            
+            # Log tags
+            mlflow.set_tag("model_category", "baseline")
+
         results[strategy] = metrics
     
     # Print comparison
@@ -171,4 +195,6 @@ if __name__ == '__main__':
     
     print(f"{'='*60}")
     print("\n✅ Baseline evaluation complete!")
-    print("\nNext step: Train Linear Regression and compare!")
+    print("\n✅ All runs logged to MLflow!")
+    print("   Run: mlflow ui")
+    print("   Open: http://localhost:5000")

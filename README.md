@@ -45,7 +45,7 @@ A machine learning project predicting US domestic flight arrival delays using hi
 | Model | Validation RMSE | Validation R² | vs Baseline |
 |-------|----------------|---------------|-------------|
 | Baseline | 31.96 min | 0.0059 | - |
-| Linear Regression | 31.54 min | 0.0317 | 5.4x R² |
+| Linear Regression | 31.55 min | 0.0317 | 5.4x R² |
 | Random Forest v1 | 29.34 min | 0.1624 | 27.5x R² |
 | **Random Forest v2** | **29.00 min** | **0.1815** | **30.7x R²** |
 

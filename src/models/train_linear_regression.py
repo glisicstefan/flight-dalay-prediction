@@ -17,17 +17,19 @@ from pathlib import Path
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+import mlflow
+import mlflow.sklearn
 
 
 def load_data():
     """Load prepared modeling data."""
     print("Loading data...")
     
-    # TODO: Load X and y for train and validation
-    X_train = pd.read_csv("../../data/processed/X_train.csv")
-    y_train = pd.read_csv("../../data/processed/y_train.csv")
-    X_val = pd.read_csv("../../data/processed/X_val.csv")
-    y_val = pd.read_csv("../../data/processed/y_val.csv")
+    # Load X and y for train and validation
+    X_train = pd.read_csv("data/processed/X_train.csv")
+    y_train = pd.read_csv("data/processed/y_train.csv")
+    X_val = pd.read_csv("data/processed/X_val.csv")
+    y_val = pd.read_csv("data/processed/y_val.csv")
     
     print(f"Train: {X_train.shape}")
     print(f"Val:   {X_val.shape}")
@@ -162,7 +164,7 @@ def compare_with_baseline(lr_metrics):
     print(f"{'='*60}")
 
 
-def save_model_and_scaler(model, scaler, output_dir='../../models'):
+def save_model_and_scaler(model, scaler, output_dir='models'):
     """Save trained model and scaler for deployment."""
     Path(output_dir).mkdir(parents=True, exist_ok=True)
     
@@ -179,6 +181,8 @@ def main():
     print("LINEAR REGRESSION - FIRST ML MODEL")
     print("="*60)
     
+    mlflow.set_experiment("flight-delay-prediction")
+
     # Step 1: Load data
     X_train, y_train, X_val, y_val = load_data()
     
@@ -201,6 +205,19 @@ def main():
     
     # Step 7: Compare with baseline
     compare_with_baseline(val_metrics)
+
+    with mlflow.start_run(run_name=f"linear_regression"):
+            # Log parameters
+            mlflow.log_param("model_type", "linear_regression")
+            mlflow.log_param("n_train_samples", len(X_train))
+            mlflow.log_param("n_val_samples", len(X_val))      
+            # Log metrics
+            mlflow.log_metric("val_rmse", val_metrics['RMSE'])
+            mlflow.log_metric("val_mae", val_metrics['MAE'])
+            mlflow.log_metric("val_r2", val_metrics['R2'])
+            
+            # Log tags
+            mlflow.set_tag("model_category", "linear_regression")
     
     # Step 8: Save model
     save_model_and_scaler(model, scaler)
@@ -208,6 +225,9 @@ def main():
     print("\n" + "="*60)
     print("✅ LINEAR REGRESSION TRAINING COMPLETE!")
     print("="*60)
+    print("\n✅ All runs logged to MLflow!")
+    print("   Run: mlflow ui")
+    print("   Open: http://localhost:5000")
 
 if __name__ == "__main__":
     main()

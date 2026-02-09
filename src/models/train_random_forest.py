@@ -17,16 +17,18 @@ from pathlib import Path
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 import time
+import mlflow
+import mlflow.sklearn
 
 
 def load_data():
     """Load prepared modeling data."""
     print("Loading data...")
 
-    X_train = pd.read_csv("../../data/processed/X_train.csv")
-    y_train = pd.read_csv("../../data/processed/y_train.csv")
-    X_val = pd.read_csv("../../data/processed/X_val.csv")
-    y_val = pd.read_csv("../../data/processed/y_val.csv")
+    X_train = pd.read_csv("data/processed/X_train.csv")
+    y_train = pd.read_csv("data/processed/y_train.csv")
+    X_val = pd.read_csv("data/processed/X_val.csv")
+    y_val = pd.read_csv("data/processed/y_val.csv")
     
     print(f"Train: {X_train.shape}")
     print(f"Val:   {X_val.shape}")
@@ -161,7 +163,7 @@ def compare_with_linear_regression(rf_metrics):
     print(f"{'='*65}")
 
 
-def save_model(model, output_dir='../../models'):
+def save_model(model, output_dir='models'):
     """Save trained model for deployment."""
     Path(output_dir).mkdir(parents=True, exist_ok=True)
     
@@ -181,11 +183,10 @@ def main():
     print("RANDOM FOREST - TREE-BASED MODEL")
     print("="*60)
     
+    mlflow.set_experiment("flight-delay-prediction")
+
     # Step 1: Load data (NO SCALING!)
     X_train, y_train, X_val, y_val = load_data()
-    
-    print("\n⚠️  Note: Tree-based models don't need feature scaling!")
-    print("   Using raw features for training.")
     
     # Step 2: Train model
     model = train_random_forest(X_train, y_train)
@@ -216,9 +217,25 @@ def main():
     
     # Step 6: Feature importance analysis
     importance_df = analyze_feature_importance(model, X_train.columns, top_n=15)
+    importance_df.to_csv("models/rf_feature_importance.csv", index=False)
     
     # Step 7: Compare with Linear Regression
     compare_with_linear_regression(val_metrics)
+
+    with mlflow.start_run(run_name=f"random_forest"):
+            # Log parameters
+            mlflow.log_param("model_type", "random_forest")
+            mlflow.log_param("n_train_samples", len(X_train))
+            mlflow.log_param("n_val_samples", len(X_val))      
+            # Log metrics
+            mlflow.log_metric("val_rmse", val_metrics['RMSE'])
+            mlflow.log_metric("val_mae", val_metrics['MAE'])
+            mlflow.log_metric("val_r2", val_metrics['R2'])
+            
+            mlflow.log_artifact("models/rf_feature_importance.csv", artifact_path="feature_importance")
+            
+            # Log tags
+            mlflow.set_tag("model_category", "random_forest")
     
     # Step 8: Save model
     save_model(model)
@@ -226,10 +243,9 @@ def main():
     print("\n" + "="*60)
     print("✅ RANDOM FOREST TRAINING COMPLETE!")
     print("="*60)
-    
-    # Optional: Save importance rankings for documentation
-    importance_df.to_csv('../../models/rf_feature_importance.csv', index=False)
-    print(f"\n✅ Feature importance saved: models/rf_feature_importance.csv")
+    print("\n✅ All runs logged to MLflow!")
+    print("   Run: mlflow ui")
+    print("   Open: http://localhost:5000")
 
 
 if __name__ == "__main__":
