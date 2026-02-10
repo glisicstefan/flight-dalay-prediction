@@ -1,0 +1,50 @@
+# docker-compose.yml - Simplified Docker container management
+# 
+# Usage:
+#   Start:  docker-compose up
+#   Stop:   docker-compose down
+#   Logs:   docker-compose logs -f
+
+version: '3.8'
+
+services:
+  api:
+    # Build from local Dockerfile
+    build:
+      context: .
+      dockerfile: Dockerfile
+    
+    # Container name
+    container_name: flight-delay-api
+    
+    # Port mapping (host:container)
+    ports:
+      - "8000:8000"
+    
+    # Environment variables (optional - override config.py defaults)
+    environment:
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+      - LOG_LEVEL=INFO
+      - DEBUG=False
+    
+    # Restart policy
+    restart: unless-stopped
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    
+    # Resource limits (optional)
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+        reservations:
+          cpus: '1.0'
+          memory: 2G
