@@ -8,10 +8,12 @@ FastAPI uses these models to:
 - Serialize responses to JSON
 """
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing import Optional, Dict, Any
 from datetime import datetime
 
+# Global Pydantic config - disable protected namespace warnings
+PYDANTIC_CONFIG = ConfigDict(protected_namespaces=())
 
 # ============================================================================
 # 1. INPUT MODEL - What API receives from user
@@ -31,7 +33,6 @@ class FlightData(BaseModel):
             "DAY_OF_WEEK": 2,
             "SCHEDULED_DEPARTURE": 1420,
             "SCHEDULED_ARRIVAL": 1650,
-            "DISTANCE": 1745,
             "AIRLINE": "AA",
             "ORIGIN_AIRPORT": "ORD",
             "DESTINATION_AIRPORT": "LAX"
@@ -78,15 +79,6 @@ class FlightData(BaseModel):
         le=2359,
         description="Scheduled arrival time in HHMM format",
         examples=[1650]
-    )
-    
-    # Distance
-    DISTANCE: int = Field(
-        ...,
-        ge=0,
-        le=5000,  # US domestic flights max ~3000 miles, buffer to 5000
-        description="Flight distance in miles",
-        examples=[1745]
     )
     
     # Airline (2-letter code)
@@ -215,6 +207,7 @@ class FlightData(BaseModel):
     
     # Model configuration
     model_config = {
+        **PYDANTIC_CONFIG,
         "json_schema_extra": {
             "examples": [
                 {
@@ -288,6 +281,7 @@ class PredictionResponse(BaseModel):
     )
     
     model_config = {
+        **PYDANTIC_CONFIG,
         "json_schema_extra": {
             "examples": [
                 {
@@ -355,6 +349,7 @@ class ErrorResponse(BaseModel):
         examples=["2025-02-09T14:23:45.123456"]
     )
 
+    model_config = PYDANTIC_CONFIG
 
 # ============================================================================
 # 4. HEALTH CHECK MODEL
@@ -399,6 +394,7 @@ class HealthResponse(BaseModel):
         examples=["random_forest"]
     )
 
+    model_config = PYDANTIC_CONFIG
 
 # ============================================================================
 # 5. HELPER FUNCTIONS
@@ -447,7 +443,6 @@ def create_flight_info(flight_data: FlightData) -> Dict[str, Any]:
             "route": "ORD → LAX",
             "scheduled_departure": "14:20",
             "scheduled_arrival": "16:50",
-            "distance_miles": 1745
         }
     """
     return {
@@ -455,7 +450,6 @@ def create_flight_info(flight_data: FlightData) -> Dict[str, Any]:
         "route": f"{flight_data.ORIGIN_AIRPORT} → {flight_data.DESTINATION_AIRPORT}",
         "scheduled_departure": format_time_hhmm(flight_data.SCHEDULED_DEPARTURE),
         "scheduled_arrival": format_time_hhmm(flight_data.SCHEDULED_ARRIVAL),
-        "distance_miles": flight_data.DISTANCE
     }
 
 
@@ -471,7 +465,7 @@ if __name__ == "__main__":
     # ========================================================================
     # Test 1: Valid FlightData
     # ========================================================================
-    print("\n1️⃣  Testing VALID FlightData...")
+    print("\n1. Testing VALID FlightData...")
     
     valid_data = {
         "MONTH": 6,
@@ -498,7 +492,7 @@ if __name__ == "__main__":
     # ========================================================================
     # Test 2: Invalid FlightData - Multiple errors
     # ========================================================================
-    print("\n2️⃣  Testing INVALID FlightData (should fail)...")
+    print("\n2. Testing INVALID FlightData (should fail)...")
     
     invalid_data = {
         "MONTH": 13,  # Out of range (1-12)
@@ -526,7 +520,7 @@ if __name__ == "__main__":
     # ========================================================================
     # Test 3: Time format validation
     # ========================================================================
-    print("\n3️⃣  Testing time format validation...")
+    print("\n3. Testing time format validation...")
     
     test_times = [
         (1420, True, "14:20 - valid"),
@@ -553,7 +547,7 @@ if __name__ == "__main__":
     # ========================================================================
     # Test 4: PredictionResponse
     # ========================================================================
-    print("\n4️⃣  Testing PredictionResponse...")
+    print("\n4. Testing PredictionResponse...")
     
     # Create response using helper function
     flight = FlightData(**valid_data)
@@ -573,7 +567,7 @@ if __name__ == "__main__":
     # ========================================================================
     # Test 5: Helper functions
     # ========================================================================
-    print("\n5️⃣  Testing helper functions...")
+    print("\n5. Testing helper functions...")
     
     test_times_format = [1420, 830, 45, 2359]
     for t in test_times_format:
