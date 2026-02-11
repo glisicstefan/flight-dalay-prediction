@@ -47,9 +47,9 @@ def prepare_data(
     create_random_splits(input_file_path=input_path, output_dir=output_dir)
     print("\n[1/4] Creating train/validation/test splits...")
     
-    train = pd.read_csv(os.path.join(output_dir, "train.csv"))
-    val = pd.read_csv(os.path.join(output_dir, "val.csv"))
-    test = pd.read_csv(os.path.join(output_dir, "test.csv"))
+    train = pd.read_csv(os.path.join(output_dir, "train.csv"), low_memory=False)
+    val = pd.read_csv(os.path.join(output_dir, "val.csv"), low_memory=False)
+    test = pd.read_csv(os.path.join(output_dir, "test.csv"), low_memory=False)
     print("\n[2/4] Loading splits...")
     
     fe = AirportFeatureEngineer()
